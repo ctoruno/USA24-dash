@@ -84,8 +84,8 @@ if check_password():
 
     # Defining auth secrets (when app is already deployed)
     dbtoken  = st.secrets["dbtoken"]
-    dbkey    = st.secrets["app_key"]
-    dbsecret = st.secrets["app_secret"]
+    dbkey    = st.secrets["dbkey"]
+    dbsecret = st.secrets["dbsecret"]
 
     # Retrieving access token 
     atoken   = retrieve_DBtoken(dbkey, dbsecret, dbtoken)
