@@ -202,8 +202,8 @@ if check_password():
             information.
         </p>
         <p class='jtext'>
-            Final data was received on June 21st, therefore, the new questions still <b>DO NOT HAVE 
-            labels</b> in the data base. You can check their respective encodings below:
+            Final data was received on June 21st, therefore, <b> some of the new questions still DO NOT HAVE 
+            labels</b> in the data base. You can check their respective encodings in the expander tab below:
         </p>
         """, 
         unsafe_allow_html=True
