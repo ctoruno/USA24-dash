@@ -150,7 +150,10 @@ if check_password():
             data.copy()
             .loc[data[target] != "Don't know/No answer"]
             .loc[data[target] != "Don't Know/No Answer"]
+            .loc[data[target] != "No answer"]
+            .loc[data[target] != "Don't know"]
             .loc[data[target] != 99]
+            .loc[data[target] != 98]
         )
     if years:
         subset = (
