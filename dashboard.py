@@ -190,7 +190,7 @@ if check_password():
     st.markdown(
         f"""
         <p class='jtext'>
-            You selected to visualize the data for the following question:
+            You have selected to visualize the data for the following question:
         </p>
         <p class='jtext'>
             <i>{question}</i>
