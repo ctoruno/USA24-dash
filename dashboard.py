@@ -169,9 +169,12 @@ if check_password():
         response = pd.crosstab(
             index     = [subset["political_aff"], subset[target]], 
             columns   = subset["year"], 
-            # normalize = "all"
         )
-        response[years] = response.groupby("political_aff")[years].transform(normalize)
+        if years:
+            response[years] = response.groupby("political_aff")[years].transform(normalize)
+        else:
+            tcols = response.columns
+            response[tcols] = response.groupby("political_aff")[tcols].transform(normalize)
         response = response.round(1)
         response.index = response.index.set_names(["Political Affiliation", "Answer"])
         response = response.reset_index()
@@ -180,7 +183,7 @@ if check_password():
         response = pd.crosstab(
             index     = subset[target], 
             columns   = subset["year"], 
-            normalize = True
+            normalize = "columns"
         ) * 100
         response = response.round(1)
         response.index = response.index.set_names(["Answer"])
