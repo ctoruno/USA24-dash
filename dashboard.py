@@ -39,7 +39,8 @@ def check_password():
 
     def password_entered():
         """Checks whether a password entered by the user is correct."""
-        if st.session_state["password"] == st.secrets["password"]:
+        # if st.session_state["password"] == st.secrets["password"]:
+        if st.session_state["password"] == "greco":
             st.session_state["password_correct"] = True
             del st.session_state["password"]  # don't store password
         else:
@@ -82,9 +83,12 @@ def normalize(group):
 if check_password():
 
     # Defining auth secrets (when app is already deployed)
-    dbtoken  = st.secrets["dbtoken"]
-    dbkey    = st.secrets["dbkey"]
-    dbsecret = st.secrets["dbsecret"]
+    # dbtoken  = st.secrets["dbtoken"]
+    # dbkey    = st.secrets["dbkey"]
+    # dbsecret = st.secrets["dbsecret"]
+    dbtoken  = "GEHe8EoOMdUAAAAAAAAAAWrvjRNE02r8p8_fguPbT28dsTpiW7DxhjGsB7cbNJ5A"
+    dbkey    = "liunwyrzz3ed5a1"
+    dbsecret = "ax08cty5efipif4"
 
     # Retrieving access token 
     atoken   = retrieve_DBtoken(dbkey, dbsecret, dbtoken)
@@ -279,22 +283,25 @@ if check_password():
             use_container_width = True
         )
     
-    # cgr = (
-    #     response
-    #     .loc[: , "Answer"]
-    #     .drop_duplicates()
-    #     .Answer.iloc[0]
-    # )
+    cgr = (
+        response[["Answer"]]
+        .drop_duplicates()
+        .iloc[0,0]
+    )
 
-    # st.write(cgr)
+    if cgr == "See Metadata":
+        cgroup = "Demographic Group"
+    else:
+        cgroup = "Answer"
+
 
     fig = px.bar(
         response, 
         x          = "Demographic Group", 
         y          = "Percentage", 
-        color      = "Answer", 
+        color      = cgroup, 
         facet_col  = "Year",
-        barmode    = "group"
+        # barmode    = "group"
     )
     fig.update_yaxes(range=[0, 105])
     fig.for_each_annotation(lambda a: a.update(text=a.text.split("=")[-1]))
