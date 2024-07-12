@@ -1,3 +1,4 @@
+import re
 import json
 import requests
 import numpy as np
@@ -13,6 +14,7 @@ from pandas.api.types import is_numeric_dtype
 st.set_page_config(
     page_title = "USA Data Dashboard",
     page_icon  = "📶",
+    layout = "wide"
 )
 
 # Reading CSS styles
@@ -29,6 +31,8 @@ def load_datamap():
 
 datamap  = load_datamap()
 
+pass1, pass2, pass3 = st.columns(3)
+
 # Defining tools
 def check_password():
     """Returns `True` if the user had the correct password."""
@@ -43,17 +47,19 @@ def check_password():
 
     if "password_correct" not in st.session_state:
         # First run, show input for password.
-        st.text_input(
-            "Password", type="password", on_change=password_entered, key="password"
-        )
-        return False
+        with pass2:
+            st.text_input(
+                "Password", type="password", on_change=password_entered, key="password"
+            )
+            return False
     elif not st.session_state["password_correct"]:
         # Password not correct, show input + error.
-        st.text_input(
-            "Password", type="password", on_change=password_entered, key="password"
-        )
-        st.error("😕 Password incorrect")
-        return False
+        with pass2:
+            st.text_input(
+                "Password", type="password", on_change=password_entered, key="password"
+            )
+            st.error("😕 Password incorrect")
+            return False
     else:
         # Password correct.
         return True
@@ -91,186 +97,197 @@ if check_password():
     def load_data():
 
         # Accessing Dropbox files
-        _, res = dbx.files_download("/USA_data.dta")
+        _, res = dbx.files_download("/data4app.csv")
         data = res.content
 
         # Reading data frames
         with BytesIO(data) as file:
-            df = pd.read_stata(file, convert_categoricals = True)
+            df = pd.read_csv(file)
 
         return df
     
     data = load_data()
     data["year"] = pd.to_numeric(data["year"], downcast='integer')
+    data = pd.merge(
+        data,
+        datamap,
+        how = "left",
+        on  = "variable"
+    )
 
-    # Instructions and filters/parameters
+    # # Instructions and filters/parameters
     st.markdown(
         """
         <h1 style='text-align: center;'>USA Data Dashboard</h1>
         """,
         unsafe_allow_html = True
     )
-    topic = st.selectbox(
-        "Please select a topic from the list below:",
-        (datamap
-        .drop_duplicates(subset = "topic")
-        .topic.to_list())
-    )
-    question = st.selectbox(
-        "Please select a question from the list below:",
-        (datamap
-        .loc[datamap["topic"] == topic]
-        .question_text.to_list())
-    )
-    years = st.multiselect(
-        "Please select the years for which you want to delimit your results:",
-        (data
-        .drop_duplicates(subset = "year")
-        .year.to_list()),
-        default = [2024]
-    )
-    paff = st.toggle(
-        "Do you want to disaggregate results by Political Affiliation?",
-        value = False
-    )
-    dkna = st.toggle(
-        "Do you want to exclude DK/NAs from the final counts?",
-        value = True
-    )
-    target = datamap.loc[datamap["question_text"] == question, "variable"].iloc[0]
+    col1, col2 = st.columns(2)
+    with col1:
+        topic = st.selectbox(
+            "Please select a topic from the list below:",
+            sorted(data
+            .drop_duplicates(subset = "topic")
+            .topic.to_list())
+        )
+        question = st.selectbox(
+            "Please select a question from the list below:",
+            (data
+            .loc[data["topic"] == topic]
+            .drop_duplicates(subset = "question_text")
+            .question_text.to_list())
+        )
+    with col2:
+        years = st.multiselect(
+            "Please select the years for which you want to delimit your results:",
+            (data
+            .loc[data["question_text"] == question]
+            .drop_duplicates(subset = "year")
+            .year.to_list()),
+            default = [2024]
+        )
+        sample = st.selectbox(
+            "Which sample would you like to explore?",
+            ["Total sample", "Disaggregate by political affiliation", "Disaggregate by ethnicity"]
+        )
 
     # Subsetting data as requested
-    if paff:
-        data = (
-            data.copy()
-            .loc[data["political_aff"] != ""]
-        )
-    if dkna:
-        data = (
-            data.copy()
-            .loc[data[target] != "Don't know/No answer"]
-            .loc[data[target] != "Don't Know/No Answer"]
-            .loc[data[target] != "Prefer not to say"]
-            .loc[data[target] != "No answer"]
-            .loc[data[target] != "Don't know"]
-            .loc[data[target] != 99]
-            .loc[data[target] != 98]
-        )
-    if years:
-        subset = (
-            data.copy()
-            .loc[data["year"].isin(years)]
-        )
-    else :
-        subset = data.copy()
+    sample_values = {
+        "Total sample"                         : ["Total"],
+        "Disaggregate by political affiliation": ["Democrats", "Republicans"],
+        "Disaggregate by ethnicity"            : ["White", "Other"]
+    }
+    demographics = sample_values[sample]
 
-    # Table of results
-    if paff:
-        response = pd.crosstab(
-            index     = [subset["political_aff"], subset[target]], 
-            columns   = subset["year"], 
-        )
-        if years:
-            response[years] = response.groupby("political_aff")[years].transform(normalize)
-        else:
-            tcols = response.columns
-            response[tcols] = response.groupby("political_aff")[tcols].transform(normalize)
-        response = response.round(1)
-        response.index = response.index.set_names(["Political Affiliation", "Answer"])
-        response = response.reset_index()
-
-    else:
-        response = pd.crosstab(
-            index     = subset[target], 
-            columns   = subset["year"], 
-            normalize = "columns"
-        ) * 100
-        response = response.round(1)
-        response.index = response.index.set_names(["Answer"])
-        response = response.reset_index()
-    
-    if is_numeric_dtype(response.Answer):
-        response["Answer"] = response["Answer"].astype(int).astype(str)
-
-    reportV = datamap.loc[datamap["variable"] == target].encoding.iloc[0]
-    st.markdown("----")
-    st.markdown(
-        f"""
-        <p class='jtext'>
-            You have selected to visualize the data for the following question:
-        </p>
-        <p class='jtext'>
-            <i>{question}</i>
-        </p>
-        <p class='jtext'>
-            The final counts for this question are shown in the table below. Please notice that
-            the numbers represent the percentage of respondents that marked each specific answer
-            during the online poll. You will also find a Chart, feel free to hoover to get more 
-            information.
-        </p>
-        <p class='jtext'>
-            Final data was received on June 21st, therefore, <b> some of the new questions still DO NOT HAVE 
-            labels</b> in the data base. You can check their respective encodings in the expander tab below:
-        </p>
-        """, 
-        unsafe_allow_html=True
+    title = (
+        data
+        .loc[data["question_text"] == question]
+        .drop_duplicates(subset = "question_text")
+        .chart_title.iloc[0]
     )
-    with st.expander("Answer encodings"):
+    subtitle = (
+        data
+        .loc[data["question_text"] == question]
+        .drop_duplicates(subset = "question_text")
+        .chart_subtitle.iloc[0]
+    )
+    panel_title = (
+        data
+        .loc[data["question_text"] == question]
+        .drop_duplicates(subset = "question_text")
+        .panel_title.iloc[0]
+    )
+    panel_subtitle = (
+        data
+        .loc[data["question_text"] == question]
+        .drop_duplicates(subset = "question_text")
+        .panel_subtitle.iloc[0]
+    )
+    encodings = (
+        data
+        .loc[data["question_text"] == question]
+        .drop_duplicates(subset = "question_text")
+        .encoding.iloc[0]
+    )
+
+    response = (
+        data.copy()
+        .loc[
+            (data["question_text"] == question) & (data["sample"].isin(demographics)) & (data["year"].isin(years)),
+            ["year", "sample", "answer", "percentage"]
+        ]
+        .reset_index(drop = True)
+        .rename(
+            columns = {
+                "year" : "Year",
+                "percentage" : "Percentage",
+                "sample" : "Demographic Group",
+                "answer" : "Answer"
+            }
+        )
+    )
+    response["Year"] = response["Year"].astype(str)
+
+    # Split the string into key-value pairs
+    def get_encdict(string):
+        new_string = re.sub("\s+(?=\d+)", "<>", encodings)
+        pairs = new_string.split("<>")
+        dictionary = {}
+        for pair in pairs:
+            key, value = re.split("=", pair, maxsplit=1)
+            dictionary[key] = value.strip()
+        return(dictionary)
+    
+    recoding_dict = get_encdict(encodings)
+    response["Answer"] = response["Answer"].replace(recoding_dict)
+
+    st.markdown("----")
+    col11, col22, col33 = st.columns([0.475, 0.05, 0.475])
+    with col11:
+        st.markdown(
+            f"""
+            <p class='jtext'>
+                You have selected to visualize the data for the following question: <b><i>{question}</i></b>
+            </p>
+            <p class='jtext'>
+                In the graphic report, this question is visualized using the following <b>METADATA</b>:
+                <ul>
+                    <li><b>Chart title</b>: <i>{title}</i> </li>
+                    <li><b>Chart subtitle</b>: <i>{subtitle}</i> </li>
+                    <li><b>Panel Header</b>: <i>{panel_title}</i> </li>
+                    <li><b>Panel Subheader</b>: <i>{panel_subtitle}</i> </li>
+                </ul>
+            </p>
+            <p class='jtext'>
+                Final data was received on June 21st, therefore, <b> some of the new questions still DO NOT HAVE 
+                labels</b> in the data base. You can check their respective encodings in the expander tab below:
+            </p>
+            """, 
+            unsafe_allow_html=True
+            )
+        with st.expander("Answer encodings"):
             st.markdown(
                 f"""
                 <p class='jtext'>
                     The encoded value labels for the selected question are defined as follow:
                 </p>
                 <p class='jtext'>
-                    {reportV}
+                    {encodings}
                 </p>
                 """, 
                 unsafe_allow_html=True
             )
-    st.dataframe(response, use_container_width = True)
-
-    if paff:
-        response_long = response.reset_index().melt(id_vars=["Political Affiliation", "Answer"], var_name="Year", value_name="Percentage")
-        response_long = response_long.loc[response_long["Year"] != "index"]
-        response_long["Year"] = response_long["Year"].apply(lambda x: str(x) if isinstance(x, (int, float)) else x)
-        nyears = len(response_long.drop_duplicates(subset="Year").Year.to_list())
-        if nyears > 1:
-            fig = px.bar(
-                response_long, 
-                y          = "Year", 
-                x          = "Percentage", 
-                color      = "Answer", 
-                barmode    = "stack",
-                facet_col  = "Political Affiliation"
-            )
-            st.plotly_chart(fig, use_container_width = True)
-        else:
-            fig = px.bar(
-                response_long, 
-                y          = "Answer", 
-                x          = "Percentage", 
-                facet_col  = "Political Affiliation"
-            )
-            st.plotly_chart(fig, use_container_width = True)
-
-    else:
-        response_long = response.reset_index().melt(id_vars="Answer", var_name="Year", value_name="Percentage")
-        response_long = response_long.loc[response_long["Year"] != "index"]
-        response_long["Year"] = response_long["Year"].apply(lambda x: str(x) if isinstance(x, (int, float)) else x)
-        nyears = len(response_long.drop_duplicates(subset="Year").Year.to_list())
-        if nyears > 1:
-            fig = px.bar(
-                response_long, 
-                y          = "Year", 
-                x          = "Percentage", 
-                color      = "Answer", 
-                barmode    = "stack"
-            )
-            st.plotly_chart(fig, use_container_width = True)
-        else:
-            fig = px.bar(
-                response_long, 
-                y       = "Answer", 
-                x       = "Percentage"
-            )
-            st.plotly_chart(fig, use_container_width = True)
+    with col33:
+        st.markdown(
+            f"""
+            <p class='jtext'>
+                The column <i>Answer</i> might be a little bit tricky given the raw state of the data that we just collected.
+                Therefore, if the column has numbers, please refer to the encodings listed on the left. If the column says
+                <i>See metadata</i>, that means that the answers were modified to group encodings, in that case please 
+                refer to the metadata listed on the left, specially to the <i>CHART SUBTITLE</i>.
+            </p>
+            """, 
+            unsafe_allow_html=True
+        )
+        st.dataframe(
+            (
+                response
+                .set_index("Year")
+                .style.format({"Percentage": "{:.1f}".format})
+            ), 
+            use_container_width = True
+        )
+        
+    fig = px.bar(
+        response.drop_duplicates(), 
+        x          = "Demographic Group", 
+        y          = "Percentage", 
+        color      = "Answer", 
+        facet_col  = "Year",
+        barmode    = "group"
+    )
+    fig.update_yaxes(range=[0, 105])
+    fig.for_each_annotation(lambda a: a.update(text=a.text.split("=")[-1]))
+    st.plotly_chart(fig, use_container_width = True)
+   
+    
