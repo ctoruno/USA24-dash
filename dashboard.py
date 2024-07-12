@@ -207,6 +207,7 @@ if check_password():
         )
     )
     response["Year"] = response["Year"].astype(str)
+    response = response.drop_duplicates()
 
     # Split the string into key-value pairs
     def get_encdict(string):
@@ -279,7 +280,7 @@ if check_password():
         )
         
     fig = px.bar(
-        response.drop_duplicates(), 
+        response, 
         x          = "Demographic Group", 
         y          = "Percentage", 
         color      = "Answer", 
