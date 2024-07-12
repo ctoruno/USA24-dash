@@ -278,7 +278,16 @@ if check_password():
             ), 
             use_container_width = True
         )
-        
+    
+    cgr = (
+        response
+        .loc[: , "Answer"]
+        .drop_duplicates()
+        .Answer.iloc[0]
+    )
+
+    st.write(cgr)
+
     fig = px.bar(
         response, 
         x          = "Demographic Group", 
