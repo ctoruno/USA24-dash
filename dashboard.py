@@ -39,8 +39,7 @@ def check_password():
 
     def password_entered():
         """Checks whether a password entered by the user is correct."""
-        # if st.session_state["password"] == st.secrets["password"]:
-        if st.session_state["password"] == "greco":
+        if st.session_state["password"] == st.secrets["password"]:
             st.session_state["password_correct"] = True
             del st.session_state["password"]  # don't store password
         else:
@@ -83,12 +82,9 @@ def normalize(group):
 if check_password():
 
     # Defining auth secrets (when app is already deployed)
-    # dbtoken  = st.secrets["dbtoken"]
-    # dbkey    = st.secrets["dbkey"]
-    # dbsecret = st.secrets["dbsecret"]
-    dbtoken  = "GEHe8EoOMdUAAAAAAAAAAWrvjRNE02r8p8_fguPbT28dsTpiW7DxhjGsB7cbNJ5A"
-    dbkey    = "liunwyrzz3ed5a1"
-    dbsecret = "ax08cty5efipif4"
+    dbtoken  = st.secrets["dbtoken"]
+    dbkey    = st.secrets["dbkey"]
+    dbsecret = st.secrets["dbsecret"]
 
     # Retrieving access token 
     atoken   = retrieve_DBtoken(dbkey, dbsecret, dbtoken)
@@ -223,8 +219,8 @@ if check_password():
             dictionary[key] = value.strip()
         return(dictionary)
     
-    recoding_dict = get_encdict(encodings)
-    response["Answer"] = response["Answer"].replace(recoding_dict)
+    # recoding_dict = get_encdict(encodings)
+    # response["Answer"] = response["Answer"].replace(recoding_dict)
 
     st.markdown("----")
     col11, col22, col33 = st.columns([0.475, 0.05, 0.475])
