@@ -138,17 +138,24 @@ if check_password():
             .question_text.to_list())
         )
     with col2:
-        years = st.multiselect(
-            "Please select the years for which you want to delimit your results:",
-            (data
-            .loc[data["question_text"] == question]
-            .drop_duplicates(subset = "year")
-            .year.to_list()),
-            default = [2024]
-        )
         sample = st.selectbox(
             "Which sample would you like to explore?",
             ["Total sample", "Disaggregate by political affiliation", "Disaggregate by ethnicity"]
+        )
+        # Subsetting data as requested
+        sample_values = {
+            "Total sample"                         : ["Total"],
+            "Disaggregate by political affiliation": ["Democrats", "Republicans"],
+            "Disaggregate by ethnicity"            : ["White", "Other"]
+        }
+        demographics = sample_values[sample]
+        years = st.multiselect(
+            "Please select the years for which you want to delimit your results:",
+            (data
+            .loc[(data["question_text"] == question) & (data["sample"].isin(demographics))]
+            .drop_duplicates(subset = "year")
+            .year.to_list()),
+            default = [2024]
         )
 
     # Subsetting data as requested
